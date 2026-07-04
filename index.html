@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>サマビュくんをサボらせるな！</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+  :root{
+    --bg:#1b1c15;
+    --bg-alt:#22231a;
+    --panel:#282a1f;
+    --panel-border: rgba(233,230,210,0.14);
+    --paper:#efe9d8;
+    --paper-alt:#e6dfc9;
+    --ink:#2a2620;
+    --ink-soft:#5c574a;
+    --text:#e9e6d2;
+    --text-muted:#9c9a86;
+    --gold:#c9a227;
+    --gold-bright:#e6c34a;
+    --felt:#3c6b45;
+    --felt-bright:#4f8a5b;
+    --stamp:#8a3b32;
+    --nudge:#7a5a9e;
+    --nudge-bright:#9a78c2;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(76,90,58,0.35), transparent 55%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 2px, transparent 2px, transparent 26px),
+      var(--bg);
+    color:var(--text);
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    line-height:1.75;
+    min-height:100vh;
+  }
+  .wrap{ max-width:640px; margin:0 auto; padding:28px 18px 90px; }
+
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px;
+    letter-spacing:.14em;
+    color:var(--text-muted);
+    text-align:center;
+    text-transform:uppercase;
+  }
+  h1.title{
+    font-family:'DotGothic16', sans-serif;
+    font-size:clamp(28px,7vw,40px);
+    text-align:center;
+    margin:6px 0 4px;
+    letter-spacing:.02em;
+    color:var(--gold-bright);
+    text-shadow:0 0 22px rgba(230,195,74,0.25);
+  }
+  p.subtitle{
+    text-align:center;
+    color:var(--text-muted);
+    font-size:14px;
+    margin:0 auto 8px;
+    max-width:440px;
+  }
+
+  /* ---- floating character ---- */
+  .stage{
+    position:relative;
+    height:300px;
+    margin:22px auto 6px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    perspective:800px;
+  }
+  .chip{
+    position:absolute;
+    width:26px;height:26px;border-radius:50%;
+    background:
+      radial-gradient(circle at 35% 30%, #ffc373, #f7931a 55%, #a85f14 100%);
+    box-shadow:0 0 0 2px rgba(120,66,10,0.55) inset, 0 0 0 3px rgba(255,195,115,0.25) inset, 0 4px 10px rgba(0,0,0,0.4);
+    opacity:.9;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .chip::after{
+    content:'₿';
+    font-family:'JetBrains Mono', monospace;
+    font-weight:700;
+    font-size:14px;
+    color:#fff3e0;
+    text-shadow:0 1px 1px rgba(120,66,10,0.6);
+  }
+  .chip1{ animation: orbit1 9s linear infinite; }
+  .chip2{ animation: orbit2 12s linear infinite reverse; }
+  .chip3{ animation: orbit3 7.5s linear infinite; }
+  @keyframes orbit1{
+    from{ transform: rotate(0deg) translateX(140px) rotate(0deg); }
+    to{ transform: rotate(360deg) translateX(140px) rotate(-360deg); }
+  }
+  @keyframes orbit2{
+    from{ transform: rotate(0deg) translateX(110px) rotate(0deg) translateY(30px); }
+    to{ transform: rotate(360deg) translateX(110px) rotate(-360deg) translateY(30px); }
+  }
+  @keyframes orbit3{
+    from{ transform: rotate(60deg) translateX(120px) rotate(-60deg) translateY(-20px); }
+    to{ transform: rotate(420deg) translateX(120px) rotate(-420deg) translateY(-20px); }
+  }
+
+  .char-wrap{
+    position:relative;
+    width:180px; height:280px;
+    transform-style:preserve-3d;
+    will-change:transform;
+  }
+  .char-shadow{
+    position:absolute;
+    bottom:6px; left:50%;
+    width:110px; height:20px;
+    background:radial-gradient(ellipse, rgba(0,0,0,0.5), transparent 70%);
+    transform:translateX(-50%);
+  }
+  .char-img{
+    width:100%; height:100%; object-fit:contain;
+    image-rendering:pixelated;
+    filter:drop-shadow(0 10px 10px rgba(0,0,0,0.4));
+  }
+  @media (prefers-reduced-motion: reduce){
+    .char-img, .char-shadow, .chip1,.chip2,.chip3{ animation:none !important; }
+  }
+
+  .speech{
+    max-width:400px;
+    margin:2px auto 26px;
+    text-align:center;
+    font-size:14.5px;
+    color:var(--text);
+    padding:12px 18px;
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    background:rgba(255,255,255,0.03);
+    position:relative;
+  }
+  .speech b{ color:var(--gold-bright); font-weight:700; }
+
+  /* ---- panels ---- */
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--panel-border);
+    border-radius:14px;
+    padding:22px 20px;
+    margin:18px 0;
+  }
+  .panel h2{
+    font-family:'DotGothic16', sans-serif;
+    font-size:19px;
+    margin:0 0 4px;
+    color:var(--text);
+  }
+  .panel .hint{ font-size:12.5px; color:var(--text-muted); margin:0 0 16px; }
+
+  label{ display:block; font-size:12.5px; color:var(--text-muted); margin:14px 0 6px; }
+  textarea, input[type=number]{
+    width:100%;
+    background:var(--bg-alt);
+    border:1px solid var(--panel-border);
+    color:var(--text);
+    border-radius:8px;
+    padding:11px 12px;
+    font-family:inherit;
+    font-size:14.5px;
+    resize:vertical;
+  }
+  textarea:focus, input:focus{ outline:2px solid var(--gold); outline-offset:1px; }
+  textarea{ min-height:84px; }
+
+  .amount-row{ display:flex; align-items:center; gap:10px; }
+  .amount-row input{ font-family:'JetBrains Mono',monospace; font-weight:700; font-size:16px; width:130px; flex:none;}
+  .amount-row .sats-label{ font-size:13px; color:var(--text-muted); }
+  .chips-quick{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  .chip-btn{
+    font-family:'JetBrains Mono',monospace;
+    background:var(--bg-alt);
+    border:1px solid var(--panel-border);
+    color:var(--gold-bright);
+    padding:6px 12px;
+    border-radius:999px;
+    font-size:12.5px;
+    cursor:pointer;
+  }
+  .chip-btn:hover{ border-color:var(--gold); }
+
+  .btn-main{
+    display:block; width:100%;
+    margin-top:20px;
+    background:linear-gradient(180deg, var(--felt-bright), var(--felt));
+    color:#eafcee;
+    border:none;
+    border-radius:10px;
+    padding:15px 16px;
+    font-family:'Zen Kaku Gothic New', sans-serif;
+    font-weight:700;
+    font-size:16px;
+    cursor:pointer;
+    box-shadow:0 6px 0 #244a2b, 0 8px 16px rgba(0,0,0,0.35);
+    transition:transform .08s ease;
+  }
+  .btn-main:active{ transform:translateY(4px); box-shadow:0 2px 0 #244a2b; }
+  .btn-main:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn-nudge{
+    background:linear-gradient(180deg, var(--nudge-bright), var(--nudge));
+    box-shadow:0 6px 0 #452f61, 0 8px 16px rgba(0,0,0,0.35);
+  }
+  .btn-nudge:active{ box-shadow:0 2px 0 #452f61; }
+  .btn-ghost{
+    display:block; width:100%; margin-top:10px;
+    background:transparent; border:1px solid var(--panel-border);
+    color:var(--text-muted); border-radius:10px; padding:11px; font-size:13px; cursor:pointer;
+  }
+
+  .error-msg{ color:#e3897b; font-size:13px; margin-top:10px; }
+  .ok-msg{ color:#9fd0a3; font-size:13px; margin-top:10px; }
+
+  /* payment panel */
+  #pay-panel{ text-align:center; }
+  #qr-box{
+    background:#fff; padding:14px; border-radius:10px; display:inline-block; margin:10px 0;
+    min-height:60px; min-width:60px;
+  }
+  #qr-box canvas, #qr-box img{ display:block; }
+  .invoice-text{
+    font-family:'JetBrains Mono',monospace;
+    font-size:11px; word-break:break-all;
+    background:var(--bg-alt); border:1px solid var(--panel-border);
+    border-radius:8px; padding:10px; color:var(--text-muted);
+    max-height:70px; overflow:auto; text-align:left;
+  }
+  .status-line{
+    font-family:'JetBrains Mono',monospace;
+    font-size:13px; color:var(--gold-bright); margin:14px 0 4px;
+    min-height:18px;
+  }
+  .copy-btn{
+    background:var(--bg-alt); border:1px solid var(--panel-border); color:var(--text);
+    border-radius:8px; padding:8px 14px; font-size:12.5px; cursor:pointer; margin-top:8px;
+  }
+
+  /* nudge queue */
+  #nudge-queue{ display:flex; flex-direction:column; gap:14px; margin-top:10px; }
+  .nudge-card{
+    background:var(--bg-alt);
+    border:1px solid var(--panel-border);
+    border-radius:10px;
+    padding:14px 16px;
+  }
+  .nudge-top{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:8px;}
+  .nudge-meter{
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--nudge-bright);
+    background:rgba(122,90,158,0.15); border:1px solid rgba(154,120,194,0.4);
+    padding:3px 9px; border-radius:999px; white-space:nowrap;
+  }
+  .neglect-tag{
+    font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#e3897b;
+    border:1px solid rgba(227,137,123,0.4); padding:2px 7px; border-radius:999px;
+  }
+  .nudge-q{ font-size:14px; margin-bottom:10px; }
+  .nudge-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .nudge-row input{
+    width:90px; flex:none;
+    font-family:'JetBrains Mono',monospace; font-weight:700;
+  }
+  .nudge-btn{
+    background:var(--nudge); color:#f1eaf8; border:none; border-radius:8px;
+    padding:9px 14px; font-size:13px; cursor:pointer; font-family:'Zen Kaku Gothic New', sans-serif; font-weight:700;
+  }
+  .empty-feed{ text-align:center; color:var(--text-muted); font-size:13.5px; padding:20px 0; }
+
+  /* feed / receipts */
+  #feed{ display:flex; flex-direction:column; gap:22px; margin-top:10px; }
+  .receipt{
+    position:relative;
+    background:var(--paper);
+    color:var(--ink);
+    border-radius:2px;
+    padding:18px 18px 20px;
+    box-shadow:0 10px 18px rgba(0,0,0,0.35);
+    font-family:'JetBrains Mono',monospace;
+  }
+  .receipt:nth-child(odd){ transform:rotate(-0.6deg); }
+  .receipt:nth-child(even){ transform:rotate(0.7deg); }
+  .receipt::before, .receipt::after{
+    content:'';
+    position:absolute; left:0; right:0; height:10px;
+    background:
+      radial-gradient(circle at 6px 5px, var(--bg) 5px, transparent 5.5px) repeat-x;
+    background-size:16px 10px;
+  }
+  .receipt::before{ top:-5px; }
+  .receipt::after{ bottom:-5px; transform:rotate(180deg); }
+  .receipt-top{
+    display:flex; justify-content:space-between; align-items:baseline;
+    font-size:11px; color:var(--ink-soft); margin-bottom:10px;
+    border-bottom:1px dashed rgba(42,38,32,0.35); padding-bottom:8px;
+  }
+  .receipt-bet{ color:var(--stamp); font-weight:700; }
+  .receipt-label{ font-size:10.5px; color:var(--ink-soft); letter-spacing:.06em; margin-bottom:3px;}
+  .receipt-q{ font-family:'Zen Kaku Gothic New', sans-serif; font-size:14.5px; margin-bottom:12px; white-space:pre-wrap; }
+  .receipt-a{ font-family:'Zen Kaku Gothic New', sans-serif; font-size:14.5px; font-weight:700; white-space:pre-wrap; }
+  .stamp{
+    position:absolute; top:16px; right:16px;
+    border:2px solid var(--stamp); color:var(--stamp);
+    font-family:'DotGothic16', sans-serif;
+    font-size:11px; padding:3px 7px; border-radius:4px;
+    transform:rotate(10deg); opacity:.75;
+    letter-spacing:.05em;
+  }
+  .locked-box{
+    background:repeating-linear-gradient(135deg, rgba(42,38,32,0.06) 0px, rgba(42,38,32,0.06) 6px, transparent 6px, transparent 12px);
+    border:1px dashed rgba(42,38,32,0.4);
+    border-radius:6px;
+    padding:14px;
+    text-align:center;
+  }
+  .locked-box p{ font-size:12px; color:var(--ink-soft); margin:0 0 10px; font-family:'Zen Kaku Gothic New', sans-serif;}
+  .unlock-btn{
+    background:var(--stamp); color:#fbe9e4; border:none; border-radius:8px;
+    padding:9px 16px; font-family:'Zen Kaku Gothic New', sans-serif; font-weight:700;
+    font-size:13.5px; cursor:pointer;
+  }
+  .pending-note{ text-align:center; font-size:12px; color:var(--text-muted); margin-top:14px; font-family:'JetBrains Mono',monospace;}
+
+  /* sabotage overlay */
+  .sabotage-overlay{
+    text-align:center; padding:26px 10px; font-family:'JetBrains Mono',monospace;
+    font-size:13.5px; color:var(--gold-bright); min-height:60px;
+  }
+  .sabotage-dots{ display:inline-block; width:1.4em; text-align:left; }
+
+  footer{
+    max-width:640px; margin:40px auto 0; padding:0 18px;
+    text-align:center; font-size:11.5px; color:var(--text-muted); line-height:1.9;
+  }
+  footer a{ color:var(--text-muted); text-decoration:underline; cursor:pointer; }
+
+  /* admin modal */
+  .modal-bg{
+    position:fixed; inset:0; background:rgba(0,0,0,0.6);
+    display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;
+  }
+  .modal{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:14px;
+    padding:22px; max-width:480px; width:100%; max-height:80vh; overflow:auto;
+  }
+  .modal h3{ font-family:'DotGothic16'; margin-top:0; }
+  .qa-admin-item{ border-top:1px dashed var(--panel-border); padding:14px 0; }
+  .qa-admin-item .q{ font-size:14px; margin-bottom:8px; }
+  .qa-admin-item .meta{ font-size:11px; color:var(--text-muted); margin-bottom:8px; font-family:'JetBrains Mono',monospace;}
+  .qa-admin-item textarea{ min-height:60px; }
+  .qa-admin-item button{
+    margin-top:8px; background:var(--felt); color:#eafcee; border:none; border-radius:8px;
+    padding:8px 14px; font-size:13px; cursor:pointer;
+  }
+  .close-x{
+    float:right; background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="eyebrow">LIGHTNING NETWORK対応 ⚡ 質問無料・催促で急かす・回答は有料解錠</div>
+  <h1 class="title">サマビュくんをサボらせるな！</h1>
+  <p class="subtitle">質問はタダ。放っておくとサマビュは絶対に答えない。satsで催促すると重い腰を上げる（かもしれない）。</p>
+
+  <div class="stage">
+    <div class="chip chip1"></div>
+    <div class="chip chip2"></div>
+    <div class="chip chip3"></div>
+    <div class="char-wrap" id="char-wrap">
+      <img class="char-img" id="char-img" src="data:image/png;base64,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" alt="サマビュくん">
+      <div class="char-shadow"></div>
+    </div>
+  </div>
+  <div class="speech" id="speech"></div>
+
+  <div class="panel">
+    <h2>サマビュに質問する</h2>
+    <p class="hint">質問を投げるのは無料。ただし答えを読みたい人は、あなたが決めた値段のsatsを払う必要があります。答えさせるには誰かが催促する必要もあります。</p>
+
+    <label for="q-input">客の質問</label>
+    <textarea id="q-input" placeholder="例：やる気が出ないんだけどどうしたらいい？" maxlength="240"></textarea>
+
+    <label for="amount-input">回答を見るための値段（sats・最低10）</label>
+    <div class="amount-row">
+      <input type="number" id="amount-input" min="10" step="1" value="10">
+      <span class="sats-label">sats・好きな値段でOK</span>
+    </div>
+    <div class="chips-quick">
+      <button type="button" class="chip-btn" data-target="amount-input" data-amt="10">10</button>
+      <button type="button" class="chip-btn" data-target="amount-input" data-amt="21">21</button>
+      <button type="button" class="chip-btn" data-target="amount-input" data-amt="100">100</button>
+      <button type="button" class="chip-btn" data-target="amount-input" data-amt="500">500</button>
+      <button type="button" class="chip-btn" data-target="amount-input" data-amt="1000">1000</button>
+    </div>
+
+    <button class="btn-main" id="ask-btn">質問を投げる（無料）</button>
+    <div class="error-msg" id="form-error"></div>
+    <div class="ok-msg" id="form-ok"></div>
+  </div>
+
+  <div class="panel" id="pay-panel" style="display:none;">
+    <h2 id="pay-title">サマビュへの支払い</h2>
+    <p class="hint" id="pay-hint"></p>
+    <div id="qr-box"></div>
+    <div class="invoice-text" id="invoice-text"></div>
+    <button class="copy-btn" id="copy-invoice-btn">インボイスをコピー</button>
+    <div class="status-line" id="status-line">確認中…</div>
+    <button class="btn-ghost" id="manual-confirm-btn" style="display:none;">払ったのに反応がない場合はこちら</button>
+    <button class="btn-ghost" id="cancel-pay-btn">やめる</button>
+  </div>
+
+  <div class="panel">
+    <h2>催促キュー</h2>
+    <p class="hint">未回答の質問一覧。satsを払って催促すると、催促度が上がって上位に来ます。サマビュが答えるかは気分次第。</p>
+    <div id="nudge-queue"><div class="empty-feed">読み込み中…</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>重い腰を上げた記録</h2>
+    <p class="hint">これまでにサマビュが答えた（サボれなかった）質問の一覧です。回答は支払うまで見えません。</p>
+    <div id="feed"><div class="empty-feed">読み込み中…</div></div>
+  </div>
+</div>
+
+<footer>
+  ※このサイトは個人情報を一切預かりません。保存するのは質問文・回答・値段・催促額・日時のみです。<br>
+  支払い確認はLightningウォレット側のverify APIに対応していれば自動で行われます。対応していない場合は自己申告での確認になります。<br>
+  一度支払って解錠した回答は、このブラウザ／アカウントでは以後payなしで表示されます。<br>
+  <a id="admin-link">運営用</a>
+</footer>
+
+<div class="modal-bg" id="admin-modal" style="display:none;">
+  <div class="modal">
+    <button class="close-x" id="admin-close">×</button>
+    <h3>サマビュ管理室</h3>
+    <div id="admin-body"></div>
+  </div>
+</div>
+
+<script>
+/* ================= 設定 ================= */
+const LN_ADDRESS = "richestrub54@walletofsatoshi.com";
+const MIN_SATS = 10;
+const ADMIN_PASSWORD = "sambyu-owner"; // ここを書き換えてください（クライアント側の簡易ロックです）
+const STORAGE_KEY = "sambyu-qa-data";       // 共有データ（質問・回答・値段・催促度）
+const UNLOCK_KEY = "sambyu-unlocked";       // 個人データ（自分がpayして解錠した質問idの配列）
+const NEGLECT_HOURS = 24; // これ以上経つと「放置中」ラベル
+
+/* ================= セリフ ================= */
+const INTRO_LINES = [
+  "質問？　べつにいいけど、真面目に答える気はないから期待すんな。",
+  "質問はタダで受け付ける。答えを覗きたい奴と、答えさせたい奴が払えばいい話。",
+  "眠い。用件だけ手短に。",
+  "勝負事なら乗る。それ以外は気分次第。",
+  "催促されても急ぐとは言ってない。",
+  "本気で答えてほしいなら他あたれ。俺はサボる専門。"
+];
+const SUBMIT_LINES = [
+  "受け取った。気が向いたら答える。向かなかったら知らん。",
+  "見た、多分。返事はそのうち、多分。",
+  "積んどく。積むだけかもしれない。",
+  "催促されるまで多分動かない。"
+];
+const NUDGE_LOW_LINES = [
+  "うるさいな…",
+  "はいはい聞こえてる。",
+  "そんな急かさなくても。"
+];
+const NUDGE_MID_LINES = [
+  "わかったわかった、そのうち。",
+  "圧がすごい。",
+  "そこまで言うなら考える。"
+];
+const NUDGE_HIGH_LINES = [
+  "もう分かったから黙ってて。",
+  "うるさすぎ。逆にやる気失せる。",
+  "…わかったよ、答えりゃいいんだろ。"
+];
+const WAIT_LINES = [
+  "サマビュ、財布探してる…（ない）",
+  "入金確認中。急かすな。",
+  "多分見てる。多分。",
+  "ちゃんと払った？　疑ってるわけじゃないけど。",
+  "確認って地味に面倒。"
+];
+const PAID_UNLOCK_LINES = [
+  "はいはい確認した。読んでいいよ。",
+  "入った。中身、大したことないけど見る？",
+  "解錠成立。期待しすぎるなよ。"
+];
+const PAID_NUDGE_LINES = [
+  "確認した。伝えとく。伝えるだけ。",
+  "はいはい、キューの上に置いとく。",
+  "受け取った。上がるだけ上げとく。"
+];
+const SABOTAGE_STEPS = [
+  "既読つけた",
+  "スマホいじってる",
+  "またちょっと寝た",
+  "伸びしてる",
+  "やっと動いた"
+];
+
+function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function setSpeech(text){ document.getElementById('speech').innerHTML = text; }
+setSpeech(pick(INTRO_LINES));
+
+function nudgeReactionLine(totalSats){
+  if(totalSats >= 2000) return pick(NUDGE_HIGH_LINES);
+  if(totalSats >= 300) return pick(NUDGE_MID_LINES);
+  return pick(NUDGE_LOW_LINES);
+}
+
+/* ================= 3Dふよふよ（マウス追従） ================= */
+const charWrap = document.getElementById('char-wrap');
+document.addEventListener('mousemove', (e)=>{
+  const r = charWrap.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const dx = (e.clientX - cx) / r.width;
+  const dy = (e.clientY - cy) / r.height;
+  charWrap.style.transform = `rotateY(${dx*14}deg) rotateX(${-dy*14}deg)`;
+});
+
+/* ================= 質問フォーム（無料投稿） ================= */
+const qInput = document.getElementById('q-input');
+const amountInput = document.getElementById('amount-input');
+document.querySelectorAll('.chip-btn').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    document.getElementById(b.dataset.target).value = b.dataset.amt;
+  });
+});
+
+const askBtn = document.getElementById('ask-btn');
+const formError = document.getElementById('form-error');
+const formOk = document.getElementById('form-ok');
+
+askBtn.addEventListener('click', async ()=>{
+  formError.textContent = '';
+  formOk.textContent = '';
+  const question = qInput.value.trim();
+  const price = parseInt(amountInput.value, 10);
+  if(!question){ formError.textContent = '質問を書いて。空欄はサマビュでも読めない。'; return; }
+  if(!price || price < MIN_SATS){ formError.textContent = `値段は最低${MIN_SATS}satsから。`; return; }
+
+  askBtn.disabled = true;
+  askBtn.textContent = '送信中…';
+  try{
+    await submitQuestion(question, price);
+    qInput.value = '';
+    amountInput.value = MIN_SATS;
+    formOk.textContent = pick(SUBMIT_LINES);
+    setSpeech(pick(SUBMIT_LINES));
+    await renderNudgeQueue();
+  }catch(e){
+    formError.textContent = '送信に失敗した。もう一度試して。';
+  }finally{
+    askBtn.disabled = false;
+    askBtn.textContent = '質問を投げる（無料）';
+  }
+});
+
+/* ================= 支払い（共通：催促 or 解錠） ================= */
+const payPanel = document.getElementById('pay-panel');
+const payTitle = document.getElementById('pay-title');
+const payHint = document.getElementById('pay-hint');
+const statusLine = document.getElementById('status-line');
+const qrBox = document.getElementById('qr-box');
+const invoiceText = document.getElementById('invoice-text');
+const manualConfirmBtn = document.getElementById('manual-confirm-btn');
+const cancelPayBtn = document.getElementById('cancel-pay-btn');
+const copyInvoiceBtn = document.getElementById('copy-invoice-btn');
+
+let pollTimer = null;
+let waitLineTimer = null;
+let currentInvoice = null; // { pr, verify, questionId, amount, purpose }
+
+async function startPayment(purpose, questionId, amountSats){
+  // purpose: 'unlock' | 'nudge'
+  if(purpose === 'unlock'){
+    payTitle.textContent = 'サマビュの回答を解錠';
+    payHint.textContent = `この回答を見るには ${amountSats} sats 必要です。下のQRで支払ってください。`;
+  }else{
+    payTitle.textContent = 'サマビュを催促する';
+    payHint.textContent = `${amountSats} sats 払って催促します。下のQRで支払ってください。`;
+  }
+  payPanel.style.display = 'block';
+  payPanel.scrollIntoView({ behavior:'smooth', block:'center' });
+  qrBox.innerHTML = '<p style="color:#333;font-size:12px;padding:20px;">インボイス発行中…</p>';
+  invoiceText.textContent = '';
+  manualConfirmBtn.style.display = 'none';
+  statusLine.textContent = '';
+
+  try{
+    const [user, domain] = LN_ADDRESS.split('@');
+    const lnurlRes = await fetch(`https://${domain}/.well-known/lnurlp/${user}`);
+    if(!lnurlRes.ok) throw new Error('lnurlp取得失敗');
+    const lnurlData = await lnurlRes.json();
+    if(lnurlData.status === 'ERROR') throw new Error(lnurlData.reason || 'lnurlpエラー');
+
+    const minSats = Math.ceil((lnurlData.minSendable||1000)/1000);
+    const maxSats = Math.floor((lnurlData.maxSendable||100000000)/1000);
+    const finalAmount = Math.min(Math.max(amountSats, minSats), maxSats);
+
+    const sep = lnurlData.callback.includes('?') ? '&' : '?';
+    const callbackUrl = `${lnurlData.callback}${sep}amount=${finalAmount*1000}`;
+    const invRes = await fetch(callbackUrl);
+    const invData = await invRes.json();
+    if(invData.status === 'ERROR') throw new Error(invData.reason || 'invoice発行エラー');
+
+    currentInvoice = { pr: invData.pr, verify: invData.verify || null, questionId, amount: finalAmount, purpose };
+
+    qrBox.innerHTML = '';
+    if(window.QRCode){
+      new QRCode(qrBox, { text: currentInvoice.pr, width:220, height:220, correctLevel: QRCode.CorrectLevel.L });
+    }else{
+      qrBox.innerHTML = '<p style="color:#333;font-size:12px;padding:20px;">QR表示ライブラリを読み込めなかった。下のインボイスをコピーして支払って。</p>';
+    }
+    invoiceText.textContent = currentInvoice.pr;
+
+    startWaitLines();
+    startPolling();
+    setTimeout(()=>{ manualConfirmBtn.style.display = 'block'; }, 20000);
+
+  }catch(err){
+    console.error(err);
+    qrBox.innerHTML = '';
+    statusLine.textContent = '決済サーバーに繋がらなかった。少し待ってもう一度試して。';
+  }
+}
+
+function startWaitLines(){
+  statusLine.textContent = pick(WAIT_LINES);
+  clearInterval(waitLineTimer);
+  waitLineTimer = setInterval(()=>{ statusLine.textContent = pick(WAIT_LINES); }, 4000);
+}
+
+function startPolling(){
+  clearInterval(pollTimer);
+  if(!currentInvoice.verify) return; // verify非対応 → 自己申告待ち
+  let tries = 0;
+  pollTimer = setInterval(async ()=>{
+    tries++;
+    if(tries > 100){ clearInterval(pollTimer); return; }
+    try{
+      const res = await fetch(currentInvoice.verify);
+      const data = await res.json();
+      if(data.settled === true){
+        clearInterval(pollTimer);
+        onPaymentConfirmed();
+      }
+    }catch(e){ /* 無視して次回リトライ */ }
+  }, 3000);
+}
+
+manualConfirmBtn.addEventListener('click', ()=>{
+  clearInterval(pollTimer);
+  onPaymentConfirmed();
+});
+
+cancelPayBtn.addEventListener('click', ()=>{
+  clearInterval(pollTimer);
+  clearInterval(waitLineTimer);
+  payPanel.style.display = 'none';
+  currentInvoice = null;
+});
+
+copyInvoiceBtn.addEventListener('click', async ()=>{
+  if(!currentInvoice) return;
+  try{
+    await navigator.clipboard.writeText(currentInvoice.pr);
+    copyInvoiceBtn.textContent = 'コピーした';
+    setTimeout(()=>{ copyInvoiceBtn.textContent = 'インボイスをコピー'; }, 1600);
+  }catch(e){}
+});
+
+async function onPaymentConfirmed(){
+  clearInterval(waitLineTimer);
+  manualConfirmBtn.style.display = 'none';
+  const { purpose, questionId, amount } = currentInvoice;
+
+  // サボり演出（引き延ばし）
+  await playSabotageSequence();
+
+  if(purpose === 'unlock'){
+    await markUnlocked(questionId);
+    statusLine.textContent = pick(PAID_UNLOCK_LINES);
+    setSpeech(pick(PAID_UNLOCK_LINES));
+    setTimeout(()=>{ payPanel.style.display='none'; currentInvoice=null; renderFeed(); }, 1200);
+  }else{
+    const newTotal = await addNudge(questionId, amount);
+    const line = nudgeReactionLine(newTotal);
+    statusLine.textContent = line;
+    setSpeech(line);
+    setTimeout(()=>{ payPanel.style.display='none'; currentInvoice=null; renderNudgeQueue(); }, 1200);
+  }
+}
+
+function playSabotageSequence(){
+  return new Promise(resolve=>{
+    statusLine.innerHTML = '';
+    qrBox.style.display = 'none';
+    invoiceText.style.display = 'none';
+    copyInvoiceBtn.style.display = 'none';
+    const overlay = document.createElement('div');
+    overlay.className = 'sabotage-overlay';
+    payPanel.insertBefore(overlay, statusLine);
+
+    let i = 0;
+    const steps = [...SABOTAGE_STEPS].sort(()=>Math.random()-0.5).slice(0,3);
+    overlay.textContent = steps[0] + '…';
+    const iv = setInterval(()=>{
+      i++;
+      if(i < steps.length){
+        overlay.textContent = steps[i] + '…';
+      }else{
+        clearInterval(iv);
+        overlay.remove();
+        qrBox.style.display = '';
+        invoiceText.style.display = '';
+        copyInvoiceBtn.style.display = '';
+        resolve();
+      }
+    }, 700);
+  });
+}
+
+/* ================= 共有ストレージ（質問・回答・催促度） ================= */
+async function loadData(){
+  try{
+    const res = await window.storage.get(STORAGE_KEY, true);
+    return res ? JSON.parse(res.value) : { questions: [] };
+  }catch(e){
+    return { questions: [] };
+  }
+}
+async function saveData(data){
+  try{
+    await window.storage.set(STORAGE_KEY, JSON.stringify(data), true);
+  }catch(e){ console.error('storage save failed', e); }
+}
+
+async function submitQuestion(question, priceSats){
+  const data = await loadData();
+  data.questions.push({
+    id: 'q_' + Date.now() + '_' + Math.random().toString(36).slice(2,8),
+    question, priceSats,
+    ts: Date.now(),
+    answered: false, answer: null, answeredAt: null,
+    bumpTotal: 0, bumpCount: 0
+  });
+  await saveData(data);
+}
+
+async function addNudge(questionId, amountSats){
+  const data = await loadData();
+  const target = data.questions.find(q=>q.id === questionId);
+  if(target){
+    target.bumpTotal = (target.bumpTotal||0) + amountSats;
+    target.bumpCount = (target.bumpCount||0) + 1;
+    await saveData(data);
+    return target.bumpTotal;
+  }
+  return 0;
+}
+
+/* ================= 個人ストレージ（自分が解錠した質問id） ================= */
+async function loadUnlocked(){
+  try{
+    const res = await window.storage.get(UNLOCK_KEY, false);
+    return res ? JSON.parse(res.value) : [];
+  }catch(e){ return []; }
+}
+async function markUnlocked(id){
+  const list = await loadUnlocked();
+  if(!list.includes(id)) list.push(id);
+  try{
+    await window.storage.set(UNLOCK_KEY, JSON.stringify(list), false);
+  }catch(e){ console.error('unlock save failed', e); }
+}
+
+/* ================= 催促キュー表示 ================= */
+async function renderNudgeQueue(){
+  const queueEl = document.getElementById('nudge-queue');
+  const data = await loadData();
+  const pending = data.questions.filter(q=>!q.answered).sort((a,b)=>(b.bumpTotal||0)-(a.bumpTotal||0));
+  if(pending.length === 0){
+    queueEl.innerHTML = '<div class="empty-feed">未回答の質問はなし。まず質問を投げてみて。</div>';
+    return;
+  }
+  const now = Date.now();
+  queueEl.innerHTML = pending.map(q=>{
+    const isNeglected = (now - q.ts) > NEGLECT_HOURS*3600*1000;
+    return `
+      <div class="nudge-card">
+        <div class="nudge-top">
+          <span class="nudge-meter">催促度 ${q.bumpTotal||0} sats（${q.bumpCount||0}回）</span>
+          ${isNeglected ? '<span class="neglect-tag">サマビュ、放置中</span>' : ''}
+        </div>
+        <div class="nudge-q">${escapeHtml(q.question)}</div>
+        <div class="nudge-row">
+          <input type="number" min="${MIN_SATS}" step="1" value="${MIN_SATS}" class="nudge-amt" data-id="${q.id}">
+          <button type="button" class="nudge-btn" data-id="${q.id}">催促する ⚡</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  queueEl.querySelectorAll('.nudge-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const id = btn.dataset.id;
+      const input = queueEl.querySelector(`.nudge-amt[data-id="${id}"]`);
+      const amt = parseInt(input.value, 10);
+      if(!amt || amt < MIN_SATS){ alert(`最低${MIN_SATS}satsから。`); return; }
+      startPayment('nudge', id, amt);
+    });
+  });
+}
+
+/* ================= 回答フィード表示 ================= */
+async function renderFeed(){
+  const feedEl = document.getElementById('feed');
+  const data = await loadData();
+  const unlocked = await loadUnlocked();
+  const answered = data.questions.filter(q=>q.answered).sort((a,b)=>b.answeredAt - a.answeredAt);
+  if(answered.length === 0){
+    feedEl.innerHTML = '<div class="empty-feed">まだ誰も答えさせられてない。催促してみる？</div>';
+    return;
+  }
+  feedEl.innerHTML = answered.map(q=>{
+    const d = new Date(q.answeredAt || q.ts);
+    const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
+    const isUnlocked = unlocked.includes(q.id);
+    const bodyHtml = isUnlocked
+      ? `<div class="receipt-label">サマビュの回答</div><div class="receipt-a">${escapeHtml(q.answer)}</div>`
+      : `<div class="locked-box">
+           <p>回答は伏せてある。読むには ${q.priceSats} sats 払って。</p>
+           <button type="button" class="unlock-btn" data-id="${q.id}" data-amt="${q.priceSats}">答えを見る（${q.priceSats} sats）🔒</button>
+         </div>`;
+    return `
+      <div class="receipt">
+        <span class="stamp">${isUnlocked ? 'サボり回答' : 'ロック中'}</span>
+        <div class="receipt-top">
+          <span class="receipt-bet">催促合計 ${q.bumpTotal||0} sats</span>
+          <span>${dateStr}</span>
+        </div>
+        <div class="receipt-label">客の質問</div>
+        <div class="receipt-q">${escapeHtml(q.question)}</div>
+        ${bodyHtml}
+      </div>
+    `;
+  }).join('');
+
+  feedEl.querySelectorAll('.unlock-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      startPayment('unlock', btn.dataset.id, parseInt(btn.dataset.amt,10));
+    });
+  });
+}
+function escapeHtml(s){
+  return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ================= 管理画面 ================= */
+const adminLink = document.getElementById('admin-link');
+const adminModal = document.getElementById('admin-modal');
+const adminBody = document.getElementById('admin-body');
+document.getElementById('admin-close').addEventListener('click', ()=>{ adminModal.style.display='none'; });
+
+adminLink.addEventListener('click', async ()=>{
+  const pw = prompt('合言葉は？');
+  if(pw !== ADMIN_PASSWORD){
+    if(pw !== null) alert('違う。サマビュも呆れてる。');
+    return;
+  }
+  adminModal.style.display = 'flex';
+  await renderAdmin();
+});
+
+async function renderAdmin(){
+  const data = await loadData();
+  const pending = data.questions.filter(q=>!q.answered).sort((a,b)=>(b.bumpTotal||0)-(a.bumpTotal||0));
+  if(pending.length === 0){
+    adminBody.innerHTML = '<p style="color:var(--text-muted);font-size:13px;">未回答の質問はなし。サボり足りてる。</p>';
+    return;
+  }
+  adminBody.innerHTML = pending.map(q=>{
+    const d = new Date(q.ts);
+    return `
+      <div class="qa-admin-item" data-id="${q.id}">
+        <div class="meta">催促度 ${q.bumpTotal||0} sats（${q.bumpCount||0}回）・見るなら ${q.priceSats} sats・${d.getMonth()+1}/${d.getDate()} ${d.getHours()}:${String(d.getMinutes()).padStart(2,'0')}</div>
+        <div class="q">${escapeHtml(q.question)}</div>
+        <textarea placeholder="サマビュとして雑に答える"></textarea>
+        <button type="button">回答して寝る</button>
+      </div>
+    `;
+  }).join('');
+  adminBody.querySelectorAll('.qa-admin-item').forEach(item=>{
+    item.querySelector('button').addEventListener('click', async ()=>{
+      const id = item.dataset.id;
+      const ans = item.querySelector('textarea').value.trim();
+      if(!ans){ alert('回答が空。それはそれでサマビュっぽいけど、一応何か書いて。'); return; }
+      const data2 = await loadData();
+      const target = data2.questions.find(q=>q.id === id);
+      if(target){
+        target.answered = true;
+        target.answer = ans;
+        target.answeredAt = Date.now();
+        await saveData(data2);
+      }
+      await renderAdmin();
+      await renderFeed();
+      await renderNudgeQueue();
+    });
+  });
+}
+
+/* ================= 初期化 ================= */
+renderNudgeQueue();
+renderFeed();
+</script>
+</body>
+</html>
