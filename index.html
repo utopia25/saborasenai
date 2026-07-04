@@ -420,7 +420,7 @@
     <div class="invoice-text" id="invoice-text"></div>
     <button class="copy-btn" id="copy-invoice-btn">インボイスをコピー</button>
     <div class="status-line" id="status-line">確認中…</div>
-    <button class="btn-ghost" id="manual-confirm-btn" style="display:none;">払ったのに反応がない場合はこちら</button>
+    <button class="btn-ghost" id="manual-confirm-btn" style="display:none;">支払いました（確認へ進む）</button>
     <button class="btn-ghost" id="cancel-pay-btn">やめる</button>
   </div>
 
@@ -654,8 +654,15 @@ async function startPayment(purpose, questionId, amountSats){
     invoiceText.textContent = currentInvoice.pr;
 
     startWaitLines();
-    startPolling();
-    setTimeout(()=>{ manualConfirmBtn.style.display = 'block'; }, 20000);
+    if(currentInvoice.verify){
+      startPolling();
+      setTimeout(()=>{ if(currentInvoice) manualConfirmBtn.style.display = 'block'; }, 8000);
+    }else{
+      // 自動確認が使えないウォレットの場合は、最初から自己申告ボタンを出す
+      manualConfirmBtn.style.display = 'block';
+      statusLine.textContent = '支払いが済んだら下のボタンを押して。';
+      clearInterval(waitLineTimer);
+    }
 
   }catch(err){
     console.error(err);
