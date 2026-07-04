@@ -370,7 +370,7 @@
 <body>
 
 <div class="wrap">
-  <div class="eyebrow">LIGHTNING NETWORK対応 ⚡ 質問無料・催促で急かす・回答は有料解錠</div>
+  <div class="eyebrow">LIGHTNING NETWORK対応 ⚡</div>
   <h1 class="title">サマビュくんをサボらせるな！</h1>
   <p class="subtitle">質問はタダ。放っておくとサマビュは絶対に答えない。satsで催促すると重い腰を上げる（かもしれない）。</p>
 
@@ -389,7 +389,7 @@
     <h2>サマビュに質問する</h2>
     <p class="hint">質問を投げるのは無料。ただし答えを読みたい人は、あなたが決めた値段のsatsを払う必要があります。答えさせるには誰かが催促する必要もあります。</p>
 
-    <label for="q-input">客の質問</label>
+    <label for="q-input">みんなからの質問</label>
     <textarea id="q-input" placeholder="例：やる気が出ないんだけどどうしたらいい？" maxlength="240"></textarea>
 
     <label for="amount-input">回答を見るための値段（sats・最低10）</label>
@@ -453,19 +453,19 @@
 /* ================= 設定 ================= */
 const LN_ADDRESS = "richestrub54@walletofsatoshi.com";
 const MIN_SATS = 10;
-const ADMIN_PASSWORD = "sambyu-owner"; // ここを書き換えてください（クライアント側の簡易ロックです）
+const ADMIN_PASSWORD_HASH = "94bc2f6ce3871c471fa8c02def6ee38dbb9526e9936064fb6d32f2518e9fbc77";
+// ↑ 合言葉そのものではなく、SHA-256ハッシュ値を置いています。
+// 合言葉を変えたいときは、ブラウザのコンソールで下記を実行して出てきた文字列に置き換えてください：
+// crypto.subtle.digest('SHA-256', new TextEncoder().encode('新しい合言葉')).then(b=>console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
 const STORAGE_KEY = "sambyu-qa-data";       // 共有データ（質問・回答・値段・催促度）
 const UNLOCK_KEY = "sambyu-unlocked";       // 個人データ（自分がpayして解錠した質問idの配列）
 const NEGLECT_HOURS = 24; // これ以上経つと「放置中」ラベル
 
 /* ================= セリフ ================= */
+// キャラの第一声。気分で自由に書き足してください（配列に文字列を追加するだけでOK）。
+// 例: "質問？　べつにいいけど、真面目に答える気はないから期待すんな。",
 const INTRO_LINES = [
-  "質問？　べつにいいけど、真面目に答える気はないから期待すんな。",
-  "質問はタダで受け付ける。答えを覗きたい奴と、答えさせたい奴が払えばいい話。",
-  "眠い。用件だけ手短に。",
-  "勝負事なら乗る。それ以外は気分次第。",
-  "催促されても急ぐとは言ってない。",
-  "本気で答えてほしいなら他あたれ。俺はサボる専門。"
+
 ];
 const SUBMIT_LINES = [
   "受け取った。気が向いたら答える。向かなかったら知らん。",
@@ -513,7 +513,7 @@ const SABOTAGE_STEPS = [
   "やっと動いた"
 ];
 
-function pick(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function pick(arr){ return arr.length ? arr[Math.floor(Math.random()*arr.length)] : ''; }
 function setSpeech(text){ document.getElementById('speech').innerHTML = text; }
 setSpeech(pick(INTRO_LINES));
 
@@ -855,7 +855,7 @@ async function renderFeed(){
           <span class="receipt-bet">催促合計 ${q.bumpTotal||0} sats</span>
           <span>${dateStr}</span>
         </div>
-        <div class="receipt-label">客の質問</div>
+        <div class="receipt-label">みんなからの質問</div>
         <div class="receipt-q">${escapeHtml(q.question)}</div>
         ${bodyHtml}
       </div>
@@ -878,10 +878,17 @@ const adminModal = document.getElementById('admin-modal');
 const adminBody = document.getElementById('admin-body');
 document.getElementById('admin-close').addEventListener('click', ()=>{ adminModal.style.display='none'; });
 
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
 adminLink.addEventListener('click', async ()=>{
   const pw = prompt('合言葉は？');
-  if(pw !== ADMIN_PASSWORD){
-    if(pw !== null) alert('違う。サマビュも呆れてる。');
+  if(pw === null) return;
+  const hash = await sha256Hex(pw);
+  if(hash !== ADMIN_PASSWORD_HASH){
+    alert('違う。サマビュも呆れてる。');
     return;
   }
   adminModal.style.display = 'flex';
