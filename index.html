@@ -445,7 +445,7 @@
 
   <div class="panel">
     <h2>重い腰を上げた記録</h2>
-    <p class="hint">これまでにサマビュが答えた（サボれなかった）質問の一覧です。回答は支払うまで見えません。</p>
+    <p class="hint">これまでにサマビュが答えた（サボれなかった）質問の一覧です。回答は誰かが支払うまで見えません。</p>
     <div id="feed"><div class="empty-feed">読み込み中…</div></div>
   </div>
 </div>
@@ -453,7 +453,7 @@
 <footer>
   ※このサイトは個人情報を一切預かりません。保存するのは質問文・回答・値段・催促額・日時のみです。<br>
   支払い確認はLightningウォレット側のverify APIに対応していれば自動で行われます。対応していない場合は自己申告での確認になります。<br>
-  一度支払って解錠した回答は、このブラウザでは以後payなしで表示されます。<br>
+  回答は、誰か1人が設定額を支払うと全員に公開されます。<br>
   <a id="admin-link">運営用</a>
 </footer>
 
@@ -627,7 +627,7 @@ let currentInvoice = null; // { pr, verify, questionId, amount, purpose }
 async function startPayment(purpose, questionId, amountSats){
   if(purpose === 'unlock'){
     payTitle.textContent = 'サマビュの回答を解錠';
-    payHint.textContent = `この回答を見るには ${amountSats} sats 必要です。下のQRで支払ってください。`;
+    payHint.textContent = `${amountSats} sats 払うと、この回答が全員に公開されます。下のQRで支払ってください。`;
   }else{
     payTitle.textContent = 'サマビュを催促する';
     payHint.textContent = `${amountSats} sats 払って催促します。下のQRで支払ってください。`;
@@ -803,21 +803,10 @@ async function addNudge(questionId, amountSats){
   return (snap.data() || {}).bumpTotal || 0;
 }
 
-/* ================= Firestore：解錠記録（匿名ユーザーごと） ================= */
-async function loadUnlocked(){
-  await authReady;
-  if(!myUid) return [];
-  try{
-    const snap = await db.collection('unlocks').doc(myUid).get();
-    return snap.exists ? (snap.data().ids || []) : [];
-  }catch(e){ return []; }
-}
+/* ================= Firestore：解錠（1人払えば全員に公開） ================= */
 async function markUnlocked(id){
   await authReady;
-  if(!myUid) return;
-  await db.collection('unlocks').doc(myUid).set({
-    ids: firebase.firestore.FieldValue.arrayUnion(id)
-  }, { merge: true });
+  await db.collection('questions').doc(id).update({ unlocked: true });
 }
 
 /* ================= 催促キュー表示 ================= */
@@ -893,7 +882,7 @@ let feedPage = 1;
 async function renderFeed(){
   const feedEl = document.getElementById('feed');
   try{
-    const [all, unlocked] = await Promise.all([fetchAllQuestions(), loadUnlocked()]);
+    const all = await fetchAllQuestions();
     const answered = all.filter(q=>q.answered).sort((a,b)=>(b.answeredAt||0)-(a.answeredAt||0));
     if(answered.length === 0){
       feedEl.innerHTML = '<div class="empty-feed">まだ誰も答えさせられてない。催促してみる？</div>';
@@ -909,12 +898,12 @@ async function renderFeed(){
     const itemsHtml = pageItems.map(q=>{
       const d = new Date(q.answeredAt || q.ts);
       const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
-      const isUnlocked = unlocked.includes(q.id);
+      const isUnlocked = q.unlocked === true;
       const bodyHtml = isUnlocked
         ? `<div class="receipt-label">サマビュの回答</div><div class="receipt-a">${escapeHtml(q.answer)}</div>`
         : `<div class="locked-box">
-             <p>回答は伏せてある。読むには ${q.priceSats} sats 払って。</p>
-             <button type="button" class="unlock-btn" data-id="${q.id}" data-amt="${q.priceSats}">答えを見る（${q.priceSats} sats）🔒</button>
+             <p>回答は伏せてある。誰かが ${q.priceSats} sats 払えば全員に公開される。</p>
+             <button type="button" class="unlock-btn" data-id="${q.id}" data-amt="${q.priceSats}">答えを開ける（${q.priceSats} sats）🔒</button>
            </div>`;
       return `
         <div class="receipt">
