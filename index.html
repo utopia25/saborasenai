@@ -278,6 +278,19 @@
 
   /* feed / receipts */
   #feed{ display:flex; flex-direction:column; gap:22px; margin-top:10px; }
+  .pager{
+    display:flex; align-items:center; justify-content:center; gap:14px;
+    margin-top:8px;
+  }
+  .pager-btn{
+    background:var(--bg-alt); border:1px solid var(--panel-border); color:var(--text);
+    border-radius:8px; padding:8px 16px; font-size:13px; cursor:pointer;
+    font-family:'Zen Kaku Gothic New', sans-serif;
+  }
+  .pager-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .pager-info{
+    font-family:'JetBrains Mono',monospace; font-size:12px; color:var(--text-muted);
+  }
   .receipt{
     position:relative;
     background:var(--paper);
@@ -808,6 +821,9 @@ async function markUnlocked(id){
 }
 
 /* ================= 催促キュー表示 ================= */
+const QUEUE_PAGE_SIZE = 10;
+let queuePage = 1;
+
 async function renderNudgeQueue(){
   const queueEl = document.getElementById('nudge-queue');
   try{
@@ -817,8 +833,15 @@ async function renderNudgeQueue(){
       queueEl.innerHTML = '<div class="empty-feed">未回答の質問はなし。まず質問を投げてみて。</div>';
       return;
     }
+
+    const totalPages = Math.ceil(pending.length / QUEUE_PAGE_SIZE);
+    if(queuePage > totalPages) queuePage = totalPages;
+    if(queuePage < 1) queuePage = 1;
+    const start = (queuePage - 1) * QUEUE_PAGE_SIZE;
+    const pageItems = pending.slice(start, start + QUEUE_PAGE_SIZE);
+
     const now = Date.now();
-    queueEl.innerHTML = pending.map(q=>{
+    const itemsHtml = pageItems.map(q=>{
       const isNeglected = (now - q.ts) > NEGLECT_HOURS*3600*1000;
       return `
         <div class="nudge-card">
@@ -835,6 +858,15 @@ async function renderNudgeQueue(){
       `;
     }).join('');
 
+    const pagerHtml = totalPages > 1 ? `
+      <div class="pager">
+        <button type="button" class="pager-btn" id="queue-pager-prev" ${queuePage<=1?'disabled':''}>← 前へ</button>
+        <span class="pager-info">${queuePage} / ${totalPages} ページ</span>
+        <button type="button" class="pager-btn" id="queue-pager-next" ${queuePage>=totalPages?'disabled':''}>次へ →</button>
+      </div>` : '';
+
+    queueEl.innerHTML = itemsHtml + pagerHtml;
+
     queueEl.querySelectorAll('.nudge-btn').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         const id = btn.dataset.id;
@@ -844,6 +876,10 @@ async function renderNudgeQueue(){
         startPayment('nudge', id, amt);
       });
     });
+    const prevBtn = document.getElementById('queue-pager-prev');
+    const nextBtn = document.getElementById('queue-pager-next');
+    if(prevBtn) prevBtn.addEventListener('click', ()=>{ queuePage--; renderNudgeQueue(); });
+    if(nextBtn) nextBtn.addEventListener('click', ()=>{ queuePage++; renderNudgeQueue(); });
   }catch(e){
     console.error(e);
     queueEl.innerHTML = '<div class="empty-feed">読み込みに失敗した。再読み込みして。</div>';
@@ -851,6 +887,9 @@ async function renderNudgeQueue(){
 }
 
 /* ================= 回答フィード表示 ================= */
+const FEED_PAGE_SIZE = 10;
+let feedPage = 1;
+
 async function renderFeed(){
   const feedEl = document.getElementById('feed');
   try{
@@ -860,7 +899,14 @@ async function renderFeed(){
       feedEl.innerHTML = '<div class="empty-feed">まだ誰も答えさせられてない。催促してみる？</div>';
       return;
     }
-    feedEl.innerHTML = answered.map(q=>{
+
+    const totalPages = Math.ceil(answered.length / FEED_PAGE_SIZE);
+    if(feedPage > totalPages) feedPage = totalPages;
+    if(feedPage < 1) feedPage = 1;
+    const start = (feedPage - 1) * FEED_PAGE_SIZE;
+    const pageItems = answered.slice(start, start + FEED_PAGE_SIZE);
+
+    const itemsHtml = pageItems.map(q=>{
       const d = new Date(q.answeredAt || q.ts);
       const dateStr = `${d.getMonth()+1}/${d.getDate()}`;
       const isUnlocked = unlocked.includes(q.id);
@@ -884,11 +930,24 @@ async function renderFeed(){
       `;
     }).join('');
 
+    const pagerHtml = totalPages > 1 ? `
+      <div class="pager">
+        <button type="button" class="pager-btn" id="pager-prev" ${feedPage<=1?'disabled':''}>← 前へ</button>
+        <span class="pager-info">${feedPage} / ${totalPages} ページ</span>
+        <button type="button" class="pager-btn" id="pager-next" ${feedPage>=totalPages?'disabled':''}>次へ →</button>
+      </div>` : '';
+
+    feedEl.innerHTML = itemsHtml + pagerHtml;
+
     feedEl.querySelectorAll('.unlock-btn').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         startPayment('unlock', btn.dataset.id, parseInt(btn.dataset.amt,10));
       });
     });
+    const prevBtn = document.getElementById('pager-prev');
+    const nextBtn = document.getElementById('pager-next');
+    if(prevBtn) prevBtn.addEventListener('click', ()=>{ feedPage--; renderFeed(); });
+    if(nextBtn) nextBtn.addEventListener('click', ()=>{ feedPage++; renderFeed(); });
   }catch(e){
     console.error(e);
     feedEl.innerHTML = '<div class="empty-feed">読み込みに失敗した。再読み込みして。</div>';
