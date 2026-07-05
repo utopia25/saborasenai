@@ -433,7 +433,6 @@
     <div class="invoice-text" id="invoice-text"></div>
     <button class="copy-btn" id="copy-invoice-btn">インボイスをコピー</button>
     <div class="status-line" id="status-line">確認中…</div>
-    <button class="btn-ghost" id="manual-confirm-btn" style="display:none;">支払いました（確認へ進む）</button>
     <button class="btn-ghost" id="cancel-pay-btn">やめる</button>
   </div>
 
@@ -616,7 +615,6 @@ const payHint = document.getElementById('pay-hint');
 const statusLine = document.getElementById('status-line');
 const qrBox = document.getElementById('qr-box');
 const invoiceText = document.getElementById('invoice-text');
-const manualConfirmBtn = document.getElementById('manual-confirm-btn');
 const cancelPayBtn = document.getElementById('cancel-pay-btn');
 const copyInvoiceBtn = document.getElementById('copy-invoice-btn');
 
@@ -636,7 +634,6 @@ async function startPayment(purpose, questionId, amountSats){
   payPanel.scrollIntoView({ behavior:'smooth', block:'center' });
   qrBox.innerHTML = '<p style="color:#333;font-size:12px;padding:20px;">インボイス発行中…</p>';
   invoiceText.textContent = '';
-  manualConfirmBtn.style.display = 'none';
   statusLine.textContent = '';
 
   try{
@@ -658,6 +655,16 @@ async function startPayment(purpose, questionId, amountSats){
 
     currentInvoice = { pr: invData.pr, verify: invData.verify || null, questionId, amount: finalAmount, purpose };
 
+    if(!currentInvoice.verify){
+      // 自動確認（verify API）が使えないウォレットでは支払い確認ができないため中断
+      qrBox.innerHTML = '';
+      invoiceText.textContent = '';
+      clearInterval(waitLineTimer);
+      statusLine.textContent = '受け取り側ウォレットが自動確認に対応してないため、いまは受付できない。';
+      currentInvoice = null;
+      return;
+    }
+
     qrBox.innerHTML = '';
     if(window.QRCode){
       new QRCode(qrBox, { text: currentInvoice.pr, width:220, height:220, correctLevel: QRCode.CorrectLevel.L });
@@ -667,15 +674,7 @@ async function startPayment(purpose, questionId, amountSats){
     invoiceText.textContent = currentInvoice.pr;
 
     startWaitLines();
-    if(currentInvoice.verify){
-      startPolling();
-      setTimeout(()=>{ if(currentInvoice) manualConfirmBtn.style.display = 'block'; }, 8000);
-    }else{
-      // 自動確認が使えないウォレットの場合は、最初から自己申告ボタンを出す
-      manualConfirmBtn.style.display = 'block';
-      statusLine.textContent = '支払いが済んだら下のボタンを押して。';
-      clearInterval(waitLineTimer);
-    }
+    startPolling();
 
   }catch(err){
     console.error(err);
@@ -692,11 +691,15 @@ function startWaitLines(){
 
 function startPolling(){
   clearInterval(pollTimer);
-  if(!currentInvoice.verify) return; // verify非対応 → 自己申告待ち
   let tries = 0;
   pollTimer = setInterval(async ()=>{
     tries++;
-    if(tries > 100){ clearInterval(pollTimer); return; }
+    if(tries > 100){ // 約5分でタイムアウト
+      clearInterval(pollTimer);
+      clearInterval(waitLineTimer);
+      statusLine.textContent = '確認がタイムアウトした。払ったのに反映されない場合は時間をおいて再読み込みして。';
+      return;
+    }
     try{
       const res = await fetch(currentInvoice.verify);
       const data = await res.json();
@@ -707,11 +710,6 @@ function startPolling(){
     }catch(e){ /* 無視して次回リトライ */ }
   }, 3000);
 }
-
-manualConfirmBtn.addEventListener('click', ()=>{
-  clearInterval(pollTimer);
-  onPaymentConfirmed();
-});
 
 cancelPayBtn.addEventListener('click', ()=>{
   clearInterval(pollTimer);
@@ -731,7 +729,6 @@ copyInvoiceBtn.addEventListener('click', async ()=>{
 
 async function onPaymentConfirmed(){
   clearInterval(waitLineTimer);
-  manualConfirmBtn.style.display = 'none';
   const { purpose, questionId, amount } = currentInvoice;
 
   // サボり演出（引き延ばし）
